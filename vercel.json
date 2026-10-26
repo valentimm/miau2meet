@@ -1,0 +1,10 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "installCommand": "echo 'proxy only: no install'",
+  "buildCommand": "mkdir -p .vercel-proxy && echo miau2meet > .vercel-proxy/_proxy.txt",
+  "outputDirectory": ".vercel-proxy",
+  "rewrites": [
+    { "source": "/(.*)", "destination": "https://miau2meet.valentimm.workers.dev/$1" }
+  ]
+}
