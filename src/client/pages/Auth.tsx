@@ -33,65 +33,90 @@ export function AuthPage({ mode }: { mode: "entrar" | "cadastrar" }) {
   if (!sessionPending && user) return <Navigate to={next} replace />;
 
   return (
-    <div className="mx-auto grid min-h-[70vh] max-w-6xl items-center gap-8 px-4 py-12 lg:grid-cols-2">
+    <div className="mx-auto grid w-full max-w-6xl items-center gap-8 px-4 py-6 sm:py-12 lg:min-h-[70vh] lg:grid-cols-2">
       <section className="hidden lg:block">
         <p className="font-display text-5xl leading-tight">
           {signUp ? "Entra na rodinha." : "Que bom te ver de novo."}
         </p>
-        <p className="mt-4 max-w-md text-lg text-muted">
+        <p className="mt-4 max-w-md text-lg leading-relaxed text-muted">
           A conta é só para pintar a sua disponibilidade. Quem recebe o link ainda consegue ver o
           calor da grade.
         </p>
       </section>
-      <form onSubmit={(event) => void onSubmit(event)} className="card mx-auto w-full max-w-md p-6 sm:p-8">
-        <h1 className="font-display text-4xl">{signUp ? "Criar conta" : "Entrar"}</h1>
-        <p className="mt-2 text-sm text-muted">
+      <form onSubmit={(event) => void onSubmit(event)} className="card mx-auto w-full min-w-0 max-w-md p-4 sm:p-8">
+        <h1 className="font-display text-[2rem] leading-tight sm:text-4xl">{signUp ? "Criar conta" : "Entrar"}</h1>
+        <p className="mt-2 text-sm leading-relaxed text-muted lg:hidden">
+          {signUp ? "Entra na rodinha. A conta é só para pintar a sua disponibilidade." : "Que bom te ver de novo."}
+        </p>
+        <p className="mt-2 hidden text-sm leading-relaxed text-muted lg:block">
           {signUp ? "Nome, e-mail e uma senha de 8 caracteres." : "Usa o e-mail da sua conta."}
         </p>
         <div className="mt-6 grid gap-4">
           {signUp ? (
             <label className="field">
               <span>Nome</span>
-              <input value={name} onChange={(event) => setName(event.target.value)} required minLength={2} maxLength={60} autoComplete="name" />
+              <input
+                name="name"
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                required
+                minLength={2}
+                maxLength={60}
+                autoComplete="name"
+                autoCapitalize="words"
+                enterKeyHint="next"
+                inputMode="text"
+              />
             </label>
           ) : null}
           <label className="field">
             <span>E-mail</span>
-            <input value={email} onChange={(event) => setEmail(event.target.value)} type="email" required autoComplete="email" />
+            <input
+              name="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              type="email"
+              inputMode="email"
+              required
+              autoComplete="email"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              enterKeyHint="next"
+            />
           </label>
           <label className="field">
             <span>Senha</span>
             <input
+              name="password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               type="password"
               required
               minLength={8}
               autoComplete={signUp ? "new-password" : "current-password"}
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              enterKeyHint="go"
             />
           </label>
         </div>
-        {error ? <p className="mt-4 text-sm font-bold text-plum-deep">{error}</p> : null}
-        <button type="submit" className="btn btn-primary mt-6 w-full" disabled={pending}>
+        {error ? (
+          <p role="alert" className="mt-4 text-sm font-bold leading-relaxed text-plum-deep">
+            {error}
+          </p>
+        ) : null}
+        <button type="submit" className="btn btn-primary mt-6 w-full" disabled={pending} aria-busy={pending}>
           {pending ? "Um instante…" : signUp ? "Criar conta" : "Entrar"}
         </button>
-        <p className="mt-4 text-sm text-muted">
-          {signUp ? (
-            <>
-              Já tem conta?{" "}
-              <Link className="font-bold text-plum-deep" to={`/entrar?next=${encodeURIComponent(next)}`}>
-                Entrar
-              </Link>
-            </>
-          ) : (
-            <>
-              Ainda não tem conta?{" "}
-              <Link className="font-bold text-plum-deep" to={`/cadastrar?next=${encodeURIComponent(next)}`}>
-                Criar conta
-              </Link>
-            </>
-          )}
-        </p>
+        <p className="mt-4 text-sm text-muted">{signUp ? "Já tem conta?" : "Ainda não tem conta?"}</p>
+        <Link
+          className="btn btn-ghost mt-2 w-full"
+          to={signUp ? `/entrar?next=${encodeURIComponent(next)}` : `/cadastrar?next=${encodeURIComponent(next)}`}
+        >
+          {signUp ? "Entrar" : "Criar conta"}
+        </Link>
       </form>
     </div>
   );

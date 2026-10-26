@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type PointerEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
 import { Link, useNavigate } from "react-router";
 import { api, ApiError } from "../api";
 import { bestRanges, formatDayLong, heatColor, peopleLabel, slotKey } from "../../lib/slots";
@@ -23,6 +23,16 @@ export type EventDetails = HeatState & {
   canEdit: boolean;
 };
 
+function slotFromPoint(x: number, y: number): string | null {
+  const stack = document.elementsFromPoint(x, y);
+  for (const element of stack) {
+    if (!(element instanceof Element)) continue;
+    const slot = element.closest<HTMLElement>("[data-slot]")?.dataset.slot;
+    if (slot) return slot;
+  }
+  return null;
+}
+
 export function EventBoard({ initial }: { initial: EventDetails }) {
   const navigate = useNavigate();
   const [serverCounts, setServerCounts] = useState(initial.counts);
@@ -33,12 +43,16 @@ export function EventBoard({ initial }: { initial: EventDetails }) {
   const [copied, setCopied] = useState(false);
   const [nudge, setNudge] = useState(false);
   const [removing, setRemoving] = useState(false);
+  const [gesture, setGesture] = useState<"paint" | "scroll">("paint");
+  const [focusSlot, setFocusSlot] = useState<string | null>(null);
   const dirty = useRef(false);
   const dragging = useRef(false);
+  const painted = useRef(false);
   const mode = useRef<"paint" | "erase">("paint");
   const ignoreClick = useRef(false);
   const mineRef = useRef(new Set(initial.mine));
   const saveSeq = useRef(0);
+  const gridRef = useRef<HTMLDivElement>(null);
 
   const counts = useMemo(() => {
     const next: Record<string, number> = { ...serverCounts };
@@ -56,6 +70,7 @@ export function EventBoard({ initial }: { initial: EventDetails }) {
 
   const max = Math.max(1, ...Object.values(counts));
   const ranges = bestRanges(counts);
+  const painting = initial.canEdit && gesture === "paint";
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -102,7 +117,10 @@ export function EventBoard({ initial }: { initial: EventDetails }) {
   }
 
   function paint(slot: string, nextMode: "paint" | "erase") {
-    const next = new Set(mineRef.current);
+    const current = mineRef.current;
+    if (nextMode === "paint" && current.has(slot)) return current;
+    if (nextMode === "erase" && !current.has(slot)) return current;
+    const next = new Set(current);
     if (nextMode === "paint") next.add(slot);
     else next.delete(slot);
     mineRef.current = next;
@@ -112,33 +130,43 @@ export function EventBoard({ initial }: { initial: EventDetails }) {
   }
 
   function onPointerDown(event: PointerEvent<HTMLButtonElement>, slot: string) {
+    if (event.button !== 0) return;
     if (!initial.canEdit) {
       setNudge(true);
       return;
     }
-    if (event.button !== 0) return;
+    if (gesture === "scroll") return;
     ignoreClick.current = true;
-    const nextMode = mine.has(slot) ? "erase" : "paint";
+    const nextMode = mineRef.current.has(slot) ? "erase" : "paint";
     mode.current = nextMode;
     paint(slot, nextMode);
-    if (event.pointerType === "mouse") {
-      dragging.current = true;
+    painted.current = true;
+    dragging.current = true;
+    try {
       event.currentTarget.setPointerCapture(event.pointerId);
+    } catch {
+      dragging.current = false;
     }
   }
 
   function onPointerMove(event: PointerEvent<HTMLButtonElement>) {
     if (!dragging.current) return;
-    const element = document.elementFromPoint(event.clientX, event.clientY);
-    const slot = element?.closest<HTMLElement>("[data-slot]")?.dataset.slot;
+    const slot = slotFromPoint(event.clientX, event.clientY);
     if (slot) paint(slot, mode.current);
   }
 
-  function onPointerUp() {
-    if (!initial.canEdit) return;
-    const wasDragging = dragging.current;
+  function finishGesture(event: PointerEvent<HTMLButtonElement>) {
+    if (!painted.current && !dragging.current) return;
+    const shouldSave = painted.current;
+    painted.current = false;
     dragging.current = false;
-    if (wasDragging || ignoreClick.current) void persist(mineRef.current);
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    if (shouldSave) void persist(mineRef.current);
+    window.setTimeout(() => {
+      ignoreClick.current = false;
+    }, 0);
   }
 
   function onClick(slot: string) {
@@ -150,9 +178,49 @@ export function EventBoard({ initial }: { initial: EventDetails }) {
       setNudge(true);
       return;
     }
-    const nextMode = mine.has(slot) ? "erase" : "paint";
+    const nextMode = mineRef.current.has(slot) ? "erase" : "paint";
     const next = paint(slot, nextMode);
     void persist(next);
+  }
+
+  function onKeyDown(event: KeyboardEvent<HTMLButtonElement>, dayIndex: number, timeIndex: number) {
+    const maxDay = initial.days.length - 1;
+    const maxTime = initial.times.length - 1;
+    let nextDay = dayIndex;
+    let nextTime = timeIndex;
+    switch (event.key) {
+      case "ArrowRight":
+        nextDay += 1;
+        break;
+      case "ArrowLeft":
+        nextDay -= 1;
+        break;
+      case "ArrowDown":
+        nextTime += 1;
+        break;
+      case "ArrowUp":
+        nextTime -= 1;
+        break;
+      case "Home":
+        nextDay = 0;
+        if (event.ctrlKey || event.metaKey) nextTime = 0;
+        break;
+      case "End":
+        nextDay = maxDay;
+        if (event.ctrlKey || event.metaKey) nextTime = maxTime;
+        break;
+      default:
+        return;
+    }
+    event.preventDefault();
+    nextDay = Math.max(0, Math.min(maxDay, nextDay));
+    nextTime = Math.max(0, Math.min(maxTime, nextTime));
+    const day = initial.days[nextDay];
+    const time = initial.times[nextTime];
+    if (!day || !time) return;
+    const slot = slotKey(day.date, time);
+    setFocusSlot(slot);
+    gridRef.current?.querySelector<HTMLButtonElement>(`[data-slot="${CSS.escape(slot)}"]`)?.focus();
   }
 
   async function copyLink() {
@@ -176,20 +244,26 @@ export function EventBoard({ initial }: { initial: EventDetails }) {
   }
 
   const statusLabel =
-    status === "saving" ? "Salvando…" : status === "saved" ? "Salvo na grade" : status === "error" ? "Não consegui salvar" : "Toque ou arraste para pintar";
+    status === "saving" ? "Salvando…" : status === "saved" ? "Salvo na grade." : status === "error" ? "Não consegui salvar." : "";
+
+  const help = !initial.canEdit
+    ? "A grade está aberta para olhar. Entre para pintar os horários em que você pode."
+    : painting
+      ? "Arraste o dedo pelos blocos para marcar ou apagar. Para rolar, arraste a faixa dos dias ou das horas, ou toque em Rolar. A marca rosa é o seu horário."
+      : "Arraste a grade para ver mais dias e horários. Um toque marca só aquele bloco. Os dias ficam fixos no topo.";
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8">
-      <header className="flex flex-wrap items-end justify-between gap-4">
-        <div>
+    <div className="mx-auto max-w-6xl px-4 py-6 sm:py-8">
+      <header className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
+        <div className="min-w-0">
           <p className="text-sm font-bold text-muted">
             organizado por {initial.event.ownerName}
             {initial.isOwner ? " · você organiza" : ""}
           </p>
-          <h1 className="font-display text-4xl sm:text-5xl">{initial.event.title}</h1>
-          <p className="mt-2 text-muted">{initial.event.summary}</p>
+          <h1 className="break-words font-display text-[2rem] leading-tight sm:text-5xl">{initial.event.title}</h1>
+          <p className="mt-2 break-words text-muted">{initial.event.summary}</p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className={`grid gap-2 ${initial.isOwner ? "grid-cols-2" : "grid-cols-1"} sm:flex sm:flex-wrap`}>
           <button type="button" className="btn btn-primary" onClick={() => void copyLink()}>
             {copied ? "Link copiado" : "Copiar link"}
           </button>
@@ -201,65 +275,112 @@ export function EventBoard({ initial }: { initial: EventDetails }) {
         </div>
       </header>
 
-      {!initial.canEdit ? (
-        <p className={`card mt-5 px-4 py-3 text-sm ${nudge ? "ring-2 ring-rose" : ""}`}>
-          A grade está aberta para olhar.{" "}
-          <Link className="font-bold text-plum-deep" to={`/entrar?next=/e/${initial.event.id}`}>
-            Entre
-          </Link>{" "}
-          para pintar os horários em que você pode.
+      <div className="mt-5 flex flex-col gap-3">
+        {initial.canEdit ? (
+          <div role="group" aria-label="Modo do toque" className="gesture-toggle">
+            <button
+              type="button"
+              className={gesture === "paint" ? "btn btn-primary" : "btn btn-ghost"}
+              aria-pressed={gesture === "paint"}
+              onClick={() => setGesture("paint")}
+            >
+              Pintar
+            </button>
+            <button
+              type="button"
+              className={gesture === "scroll" ? "btn btn-primary" : "btn btn-ghost"}
+              aria-pressed={gesture === "scroll"}
+              onClick={() => setGesture("scroll")}
+            >
+              Rolar
+            </button>
+          </div>
+        ) : (
+          <div className={`card px-4 py-4 text-sm leading-relaxed ${nudge ? "ring-2 ring-rose" : ""}`}>
+            <p>A grade está aberta para olhar. Entre para pintar os horários em que você pode.</p>
+            <Link className="btn btn-primary mt-3 w-full sm:w-auto" to={`/entrar?next=/e/${initial.event.id}`}>
+              Entrar para pintar
+            </Link>
+          </div>
+        )}
+        <p id="grade-ajuda" className="text-sm leading-relaxed text-muted">
+          {help}
         </p>
-      ) : (
-        <p className="mt-5 text-sm text-muted">
-          {statusLabel}. No computador, arraste. No celular, toque em cada bloco. A bolinha rosa é o seu horário.
-        </p>
-      )}
+        <div aria-live="polite">
+          {statusLabel ? (
+            <p className={`text-sm font-bold ${status === "error" ? "text-plum-deep" : "text-muted"}`} role={status === "error" ? "alert" : undefined}>
+              {statusLabel}
+            </p>
+          ) : null}
+        </div>
+      </div>
 
-      <div className="mt-6 grid gap-5 lg:grid-cols-[minmax(0,1fr)_280px]">
-        <div className="card overflow-auto p-3 sm:p-4" style={{ touchAction: "pan-y" }}>
+      <div className="mt-4 grid gap-5 lg:grid-cols-[minmax(0,1fr)_280px]">
+        <div className={`card grid-scroll min-w-0 p-2 sm:p-3 ${painting ? "is-painting" : ""}`}>
           <div
-            className="grid gap-1"
+            ref={gridRef}
+            role="grid"
+            aria-readonly={!initial.canEdit}
+            aria-label={`Disponibilidade de ${initial.event.title}`}
+            aria-describedby="grade-ajuda"
+            aria-rowcount={initial.times.length + 1}
+            aria-colcount={initial.days.length + 1}
+            className="availability"
             style={{
-              gridTemplateColumns: `4.5rem repeat(${initial.days.length}, 4.6rem)`,
-              width: "max-content",
-              minWidth: "100%",
+              gridTemplateColumns: `var(--time-col) repeat(${initial.days.length}, minmax(var(--slot-min), 1fr))`,
             }}
           >
-            <div className="sticky left-0 top-0 z-20 bg-paper" />
-            {initial.days.map((day) => (
-              <div key={day.date} className="sticky top-0 z-10 bg-paper/95 px-1 py-2 text-center backdrop-blur">
-                <div className="text-[11px] font-bold uppercase tracking-wide text-muted">{day.weekday}</div>
-                <div className="font-display text-xl leading-none">{day.day}</div>
-                <div className="text-[10px] text-muted">{day.month}</div>
-              </div>
-            ))}
-            {initial.times.map((time) => (
-              <div key={time} className="contents">
-                <div className="sticky left-0 z-10 flex items-center whitespace-nowrap bg-paper/95 pr-2 text-[11px] font-bold tabular-nums text-muted">
+            <div role="row" className="grid-row" aria-rowindex={1}>
+              <div className="corner" aria-hidden="true" />
+              {initial.days.map((day, dayIndex) => (
+                <div
+                  key={day.date}
+                  role="columnheader"
+                  aria-colindex={dayIndex + 2}
+                  aria-label={formatDayLong(day.date)}
+                  className="day-head"
+                >
+                  <div className="text-xs font-bold uppercase tracking-wide text-muted">{day.weekday}</div>
+                  <div className="font-display text-2xl leading-none">{day.day}</div>
+                  <div className="text-xs text-muted">{day.month}</div>
+                </div>
+              ))}
+            </div>
+            {initial.times.map((time, timeIndex) => (
+              <div key={time} role="row" className="grid-row" aria-rowindex={timeIndex + 2}>
+                <div role="rowheader" className="time-head" aria-colindex={1}>
                   {time}
                 </div>
-                {initial.days.map((day) => {
+                {initial.days.map((day, dayIndex) => {
                   const slot = slotKey(day.date, time);
                   const count = counts[slot] ?? 0;
                   const tone = heatColor(count, max);
                   const selected = mine.has(slot);
+                  const tabStop = focusSlot ? focusSlot === slot : dayIndex === 0 && timeIndex === 0;
+                  const who = count === 0 ? "ninguém" : peopleLabel(count);
                   return (
-                    <button
-                      key={slot}
-                      type="button"
-                      data-slot={slot}
-                      data-mine={selected ? "true" : "false"}
-                      className="slot"
-                      style={{ background: tone.background, color: tone.color }}
-                      aria-pressed={selected}
-                      aria-label={`${formatDayLong(day.date)} ${time}, ${peopleLabel(count)}${selected ? ", você marcou" : ""}`}
-                      onPointerDown={(event) => onPointerDown(event, slot)}
-                      onPointerMove={onPointerMove}
-                      onPointerUp={onPointerUp}
-                      onClick={() => onClick(slot)}
-                    >
-                      {count > 0 ? <span className="text-[11px] font-bold tabular-nums">{count}</span> : null}
-                    </button>
+                    <div key={slot} role="gridcell" aria-colindex={dayIndex + 2} className="slot-cell">
+                      <button
+                        type="button"
+                        data-slot={slot}
+                        data-mine={selected ? "true" : "false"}
+                        className="slot"
+                        style={{ background: tone.background, color: tone.color }}
+                        aria-pressed={selected}
+                        aria-label={`${formatDayLong(day.date)} ${time}, ${who}${selected ? ", você marcou" : ""}`}
+                        tabIndex={tabStop ? 0 : -1}
+                        onFocus={() => setFocusSlot(slot)}
+                        onKeyDown={(event) => onKeyDown(event, dayIndex, timeIndex)}
+                        onPointerDown={(event) => onPointerDown(event, slot)}
+                        onPointerMove={onPointerMove}
+                        onPointerUp={finishGesture}
+                        onPointerCancel={finishGesture}
+                        onContextMenu={(event) => event.preventDefault()}
+                        onClick={() => onClick(slot)}
+                      >
+                        {count > 0 ? <span className="slot-count">{count}</span> : null}
+                      </button>
+                    </div>
                   );
                 })}
               </div>
@@ -267,11 +388,11 @@ export function EventBoard({ initial }: { initial: EventDetails }) {
           </div>
         </div>
 
-        <aside className="space-y-4 lg:sticky lg:top-24 lg:self-start">
+        <aside className="min-w-0 space-y-4 lg:sticky lg:top-24 lg:self-start">
           <section className="card p-4">
             <h2 className="font-bold">Calor da grade</h2>
             <div className="mt-3 h-3 rounded-full bg-gradient-to-r from-paper to-plum-deep" />
-            <div className="mt-1 flex justify-between text-xs text-muted">
+            <div className="mt-1 flex justify-between text-sm text-muted">
               <span>ninguém</span>
               <span>muita gente</span>
             </div>
@@ -294,13 +415,13 @@ export function EventBoard({ initial }: { initial: EventDetails }) {
           {initial.isOwner ? (
             <section className="card p-4">
               <h2 className="font-bold">Melhores horários</h2>
-              <p className="mt-1 text-xs text-muted">Só você, que organiza, vê este ranking.</p>
+              <p className="mt-1 text-sm leading-relaxed text-muted">Só você, que organiza, vê este ranking.</p>
               {ranges.length === 0 ? (
                 <p className="mt-3 text-sm text-muted">Ainda não dá para ranquear. Espera a galera pintar.</p>
               ) : (
                 <ol className="mt-3 space-y-2">
                   {ranges.map((range) => (
-                    <li key={`${range.day}-${range.start}`} className="rounded-2xl bg-lilac px-3 py-2 text-sm">
+                    <li key={`${range.day}-${range.start}`} className="rounded-2xl bg-lilac px-3 py-3 text-sm leading-relaxed">
                       <span className="block font-bold">{formatDayLong(range.day)}</span>
                       <span>
                         {range.start}–{range.end} · {peopleLabel(range.count)}
@@ -319,9 +440,9 @@ export function EventBoard({ initial }: { initial: EventDetails }) {
             ) : (
               <ul className="mt-3 space-y-2 text-sm">
                 {people.map((person) => (
-                  <li key={person.id} className="flex items-center justify-between gap-3">
-                    <span className="truncate font-bold">{person.name}</span>
-                    <span className="text-muted">
+                  <li key={person.id} className="flex items-start justify-between gap-3">
+                    <span className="min-w-0 flex-1 break-words font-bold">{person.name}</span>
+                    <span className="shrink-0 text-muted">
                       {person.count === 1 ? "1 horário" : `${person.count} horários`}
                     </span>
                   </li>

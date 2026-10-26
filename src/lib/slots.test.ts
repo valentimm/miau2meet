@@ -66,7 +66,41 @@ test("merges adjacent equal counts and keeps days apart", () => {
   assert.equal(ranges.filter((range) => range.day === "2026-10-28").length, 1);
 });
 
+function cssToRgb(color: string): [number, number, number] {
+  if (color.startsWith("#")) {
+    const value = Number.parseInt(color.slice(1), 16);
+    return [(value >> 16) & 255, (value >> 8) & 255, value & 255];
+  }
+  const match = color.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
+  assert.ok(match, color);
+  return [Number(match[1]), Number(match[2]), Number(match[3])];
+}
+
+function contrast(foreground: string, background: string): number {
+  const channel = (value: number) => {
+    const ratio = value / 255;
+    return ratio <= 0.04045 ? ratio / 12.92 : ((ratio + 0.055) / 1.055) ** 2.4;
+  };
+  const luminance = (color: string) => {
+    const [red, green, blue] = cssToRgb(color).map(channel);
+    return 0.2126 * red + 0.7152 * green + 0.0722 * blue;
+  };
+  const lighter = Math.max(luminance(foreground), luminance(background));
+  const darker = Math.min(luminance(foreground), luminance(background));
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
 test("keeps an empty cell on the cream paper", () => {
   assert.equal(heatColor(0, 4).background, "#fffaf4");
   assert.notEqual(heatColor(4, 4).background, heatColor(1, 4).background);
+});
+
+test("keeps heat numerals at WCAG AA contrast", () => {
+  for (const max of [1, 2, 3, 4, 6, 8, 12]) {
+    for (let count = 0; count <= max; count += 1) {
+      const tone = heatColor(count, max);
+      const ratio = contrast(tone.color, tone.background);
+      assert.ok(ratio >= 4.5, `${count}/${max} ${tone.color} on ${tone.background} = ${ratio.toFixed(2)}`);
+    }
+  }
 });

@@ -58,62 +58,139 @@ export function NewEventPage() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-10">
-      <h1 className="font-display text-5xl">Novo encontro</h1>
+    <div className="mx-auto max-w-2xl px-4 py-6 sm:py-10">
+      <h1 className="break-words font-display text-[2rem] leading-tight sm:text-5xl">Novo encontro</h1>
       <p className="mt-2 text-muted">A grade usa blocos de 30 minutos, em até 14 dias.</p>
-      <form onSubmit={(event) => void onSubmit(event)} className="card mt-6 grid gap-4 p-5 sm:p-7">
+      <form onSubmit={(event) => void onSubmit(event)} className="card mt-6 grid min-w-0 gap-4 p-4 sm:p-7">
         <label className="field">
           <span>Título</span>
-          <input value={title} onChange={(event) => setTitle(event.target.value)} maxLength={80} placeholder="Almoço de sexta" required />
-          {errors.title ? <em className="text-sm font-bold not-italic text-plum-deep">{errors.title}</em> : null}
+          <input
+            name="title"
+            value={title}
+            onChange={(event) => setTitle(event.target.value)}
+            maxLength={80}
+            placeholder="Almoço de sexta"
+            required
+            autoComplete="off"
+            autoCapitalize="sentences"
+            enterKeyHint="next"
+            inputMode="text"
+            aria-invalid={errors.title ? true : undefined}
+            aria-describedby={errors.title ? "erro-titulo" : undefined}
+          />
+          {errors.title ? (
+            <em id="erro-titulo" role="alert" className="text-sm font-bold not-italic text-plum-deep">
+              {errors.title}
+            </em>
+          ) : null}
         </label>
         <label className="field">
           <span>Fuso horário</span>
-          <select value={timezone} onChange={(event) => setTimezone(event.target.value)}>
+          <select
+            name="timezone"
+            value={timezone}
+            onChange={(event) => setTimezone(event.target.value)}
+            aria-invalid={errors.timezone ? true : undefined}
+            aria-describedby={errors.timezone ? "erro-fuso" : undefined}
+          >
             {TIMEZONES.map((zone) => (
               <option key={zone.id} value={zone.id}>
                 {zone.label}
               </option>
             ))}
           </select>
-          {errors.timezone ? <em className="text-sm font-bold not-italic text-plum-deep">{errors.timezone}</em> : null}
+          {errors.timezone ? (
+            <em id="erro-fuso" role="alert" className="text-sm font-bold not-italic text-plum-deep">
+              {errors.timezone}
+            </em>
+          ) : null}
         </label>
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid min-w-0 gap-4 sm:grid-cols-2">
           <label className="field">
             <span>Do dia</span>
-            <input type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} required />
-            {errors.startDate ? <em className="text-sm font-bold not-italic text-plum-deep">{errors.startDate}</em> : null}
+            <input
+              name="startDate"
+              type="date"
+              value={startDate}
+              onChange={(event) => setStartDate(event.target.value)}
+              required
+              autoComplete="off"
+              aria-invalid={errors.startDate ? true : undefined}
+              aria-describedby={errors.startDate ? "erro-inicio" : undefined}
+            />
+            {errors.startDate ? (
+              <em id="erro-inicio" role="alert" className="text-sm font-bold not-italic text-plum-deep">
+                {errors.startDate}
+              </em>
+            ) : null}
           </label>
           <label className="field">
             <span>Até o dia</span>
-            <input type="date" value={endDate} onChange={(event) => setEndDate(event.target.value)} required />
-            {errors.endDate ? <em className="text-sm font-bold not-italic text-plum-deep">{errors.endDate}</em> : null}
+            <input
+              name="endDate"
+              type="date"
+              value={endDate}
+              onChange={(event) => setEndDate(event.target.value)}
+              required
+              autoComplete="off"
+              aria-invalid={errors.endDate ? true : undefined}
+              aria-describedby={errors.endDate ? "erro-fim" : undefined}
+            />
+            {errors.endDate ? (
+              <em id="erro-fim" role="alert" className="text-sm font-bold not-italic text-plum-deep">
+                {errors.endDate}
+              </em>
+            ) : null}
           </label>
           <label className="field">
             <span>Das</span>
-            <select value={startHour} onChange={(event) => setStartHour(Number(event.target.value))}>
+            <select
+              name="startHour"
+              value={startHour}
+              onChange={(event) => setStartHour(Number(event.target.value))}
+              aria-invalid={errors.startHour ? true : undefined}
+              aria-describedby={errors.startHour ? "erro-hora-inicio" : undefined}
+            >
               {Array.from({ length: 24 }, (_, hour) => (
                 <option key={hour} value={hour}>
                   {hourLabel(hour)}
                 </option>
               ))}
             </select>
-            {errors.startHour ? <em className="text-sm font-bold not-italic text-plum-deep">{errors.startHour}</em> : null}
+            {errors.startHour ? (
+              <em id="erro-hora-inicio" role="alert" className="text-sm font-bold not-italic text-plum-deep">
+                {errors.startHour}
+              </em>
+            ) : null}
           </label>
           <label className="field">
             <span>Até</span>
-            <select value={endHour} onChange={(event) => setEndHour(Number(event.target.value))}>
+            <select
+              name="endHour"
+              value={endHour}
+              onChange={(event) => setEndHour(Number(event.target.value))}
+              aria-invalid={errors.endHour ? true : undefined}
+              aria-describedby={errors.endHour ? "erro-hora-fim" : undefined}
+            >
               {Array.from({ length: 24 }, (_, index) => index + 1).map((hour) => (
                 <option key={hour} value={hour}>
                   {hourLabel(hour)}
                 </option>
               ))}
             </select>
-            {errors.endHour ? <em className="text-sm font-bold not-italic text-plum-deep">{errors.endHour}</em> : null}
+            {errors.endHour ? (
+              <em id="erro-hora-fim" role="alert" className="text-sm font-bold not-italic text-plum-deep">
+                {errors.endHour}
+              </em>
+            ) : null}
           </label>
         </div>
-        {message ? <p className="text-sm font-bold text-plum-deep">{message}</p> : null}
-        <button type="submit" className="btn btn-primary" disabled={saving}>
+        {message ? (
+          <p role="alert" className="text-sm font-bold leading-relaxed text-plum-deep">
+            {message}
+          </p>
+        ) : null}
+        <button type="submit" className="btn btn-primary w-full" disabled={saving} aria-busy={saving}>
           {saving ? "Abrindo a grade…" : "Abrir a grade"}
         </button>
       </form>
