@@ -255,15 +255,72 @@ export function bestRanges(counts: Record<string, number>, limit = 4): BestRange
     .slice(0, limit);
 }
 
+const INK = "#2a2233";
+const PAPER = "#fffaf4";
+const INK_RGB = [0x2a, 0x22, 0x33] as const;
+const PAPER_RGB = [0xff, 0xfa, 0xf4] as const;
+const PLUM_RGB = [0x4c, 0x34, 0x8f] as const;
+
+function srgbChannel(value: number): number {
+  const channel = value / 255;
+  return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+}
+
+function relativeLuminance(rgb: readonly number[]): number {
+  const [red, green, blue] = rgb.map(srgbChannel);
+  return 0.2126 * red + 0.7152 * green + 0.0722 * blue;
+}
+
+function contrastRatio(a: number, b: number): number {
+  const lighter = Math.max(a, b);
+  const darker = Math.min(a, b);
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
+const INK_L = relativeLuminance(INK_RGB);
+const PAPER_L = relativeLuminance(PAPER_RGB);
+
+function mixHeat(amount: number): [number, number, number] {
+  return [0, 1, 2].map((index) =>
+    Math.round(PAPER_RGB[index] + (PLUM_RGB[index] - PAPER_RGB[index]) * amount),
+  ) as [number, number, number];
+}
+
+function readableHeat(amount: number): { rgb: [number, number, number]; color: string } {
+  const rated = (rgb: [number, number, number]) => {
+    const luminance = relativeLuminance(rgb);
+    const ink = contrastRatio(luminance, INK_L);
+    const paper = contrastRatio(luminance, PAPER_L);
+    return paper > ink ? { ratio: paper, color: PAPER } : { ratio: ink, color: INK };
+  };
+
+  let rgb = mixHeat(amount);
+  let best = rated(rgb);
+  if (best.ratio >= 4.5) return { rgb, color: best.color };
+
+  // Mid-plum is too light for cream text and too dark for ink. Step away from
+  // that valley so the numeral stays at least WCAG AA.
+  for (let step = 1; step <= 20; step += 1) {
+    const delta = step / 100;
+    const candidates = [amount - delta, amount + delta].filter((value) => value >= 0 && value <= 1);
+    let chosen: { rgb: [number, number, number]; color: string; ratio: number } | null = null;
+    for (const candidate of candidates) {
+      const next = mixHeat(candidate);
+      const score = rated(next);
+      if (!chosen || score.ratio > chosen.ratio) chosen = { rgb: next, color: score.color, ratio: score.ratio };
+    }
+    if (chosen && chosen.ratio >= 4.5) return { rgb: chosen.rgb, color: chosen.color };
+  }
+
+  return { rgb, color: best.color };
+}
+
 export function heatColor(count: number, max: number): { background: string; color: string } {
-  if (count <= 0 || max <= 0) return { background: "#fffaf4", color: "#2a2233" };
-  const amount = Math.min(1, count / max);
-  const from = [255, 250, 244];
-  const to = [76, 52, 143];
-  const mix = from.map((channel, index) => Math.round(channel + (to[index] - channel) * amount));
+  if (count <= 0 || max <= 0) return { background: PAPER, color: INK };
+  const tone = readableHeat(Math.min(1, count / max));
   return {
-    background: `rgb(${mix[0]}, ${mix[1]}, ${mix[2]})`,
-    color: amount > 0.62 ? "#fffaf4" : "#2a2233",
+    background: `rgb(${tone.rgb[0]}, ${tone.rgb[1]}, ${tone.rgb[2]})`,
+    color: tone.color,
   };
 }
 

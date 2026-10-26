@@ -35,9 +35,9 @@ export function EventPage() {
   if (missing) {
     return (
       <div className="mx-auto max-w-lg px-4 py-20 text-center">
-        <h1 className="font-display text-4xl">Esse encontro não existe.</h1>
+        <h1 className="break-words font-display text-[2rem] leading-tight sm:text-4xl">Esse encontro não existe.</h1>
         <p className="mt-3 text-muted">O link pode ter quebrado, ou alguém apagou a grade.</p>
-        <Link to="/" className="btn btn-primary mt-6">
+        <Link to="/" className="btn btn-primary mt-6 w-full sm:w-auto">
           Voltar ao início
         </Link>
       </div>
@@ -47,7 +47,7 @@ export function EventPage() {
   if (error) {
     return (
       <div className="mx-auto max-w-lg px-4 py-20 text-center">
-        <h1 className="font-display text-4xl">A grade não abriu.</h1>
+        <h1 className="break-words font-display text-[2rem] leading-tight sm:text-4xl">A grade não abriu.</h1>
         <p className="mt-3 text-muted">{error}</p>
       </div>
     );

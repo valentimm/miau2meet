@@ -40,13 +40,13 @@ export function EventsPage() {
   const joined = events?.filter((event) => event.role === "guest") ?? [];
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-10">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="font-display text-5xl">Meus eventos</h1>
+    <div className="mx-auto max-w-5xl px-4 py-6 sm:py-10">
+      <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="break-words font-display text-[2rem] leading-tight sm:text-5xl">Meus eventos</h1>
           <p className="mt-2 text-muted">Os que você organiza e os que você já pintou.</p>
         </div>
-        <Link to="/eventos/novo" className="btn btn-primary">
+        <Link to="/eventos/novo" className="btn btn-primary w-full sm:w-auto">
           Novo encontro
         </Link>
       </div>
@@ -69,17 +69,23 @@ function EventGroup({ title, events }: { title: string; events: EventCard[] }) {
   if (events.length === 0) return null;
   return (
     <section className="mt-8">
-      <h2 className="text-sm font-bold uppercase tracking-[0.14em] text-muted">{title}</h2>
+      <h2 className="text-sm font-bold uppercase tracking-[0.12em] text-muted">{title}</h2>
       <ul className="mt-3 grid gap-3">
         {events.map((event) => (
           <li key={event.id}>
-            <Link to={`/e/${event.id}`} className="card flex items-center justify-between gap-4 p-4 hover:border-plum/40">
-              <span>
-                <span className="block font-display text-2xl">{event.title}</span>
-                <span className="mt-1 block text-sm text-muted">{event.summary}</span>
+            <Link
+              to={`/e/${event.id}`}
+              className="card flex min-h-16 flex-col items-start gap-3 p-4 sm:flex-row sm:items-center sm:justify-between"
+            >
+              <span className="min-w-0">
+                <span className="block break-words font-display text-2xl leading-tight">{event.title}</span>
+                <span className="mt-1 block break-words text-sm leading-relaxed text-muted">{event.summary}</span>
               </span>
-              <span className="shrink-0 rounded-full bg-lilac px-3 py-1 text-xs font-bold text-plum-deep">
-                {event.participants === 1 ? "1 pessoa" : `${event.participants} pessoas`}
+              <span className="flex w-full items-center justify-between gap-3 sm:w-auto sm:justify-end">
+                <span className="rounded-full bg-lilac px-3 py-2 text-sm font-bold text-plum-deep">
+                  {event.participants === 1 ? "1 pessoa" : `${event.participants} pessoas`}
+                </span>
+                <span className="text-sm font-bold text-plum-deep">Abrir</span>
               </span>
             </Link>
           </li>

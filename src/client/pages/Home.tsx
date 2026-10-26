@@ -17,24 +17,24 @@ export function HomePage() {
   const createHref = user ? "/eventos/novo" : "/cadastrar?next=/eventos/novo";
 
   return (
-    <div className="mx-auto grid max-w-6xl items-center gap-10 px-4 py-12 lg:grid-cols-[1.1fr_0.9fr] lg:py-20">
-      <section>
-        <p className="mb-4 inline-flex items-center gap-2 rounded-full bg-white/70 px-3 py-1 text-sm font-bold text-plum-deep">
-          <Paw className="h-4 w-4" />
+    <div className="mx-auto grid max-w-6xl items-center gap-10 px-4 py-8 sm:py-12 lg:grid-cols-[1.1fr_0.9fr] lg:py-20">
+      <section className="min-w-0">
+        <p className="mb-4 inline-flex min-h-11 items-center gap-2 rounded-full bg-white/70 px-3 py-1 text-sm font-bold text-plum-deep">
+          <Paw className="h-4 w-4 shrink-0" />
           agenda coletiva, sem planilha
         </p>
-        <h1 className="font-display text-5xl leading-[1.05] tracking-tight text-ink sm:text-6xl">
+        <h1 className="text-balance font-display text-[2.35rem] leading-[1.08] tracking-tight text-ink min-[400px]:text-5xl sm:text-6xl">
           O horário em que a galera pode.
         </h1>
-        <p className="mt-5 max-w-xl text-lg leading-relaxed text-muted">
+        <p className="mt-5 max-w-xl text-base leading-relaxed text-muted sm:text-lg">
           Cria um encontro, manda o link e deixa cada pessoa pintar a grade. O calor mostra onde as
           agendas se encontram — quem organiza vê os melhores horários.
         </p>
-        <div className="mt-8 flex flex-wrap gap-3">
-          <Link to={createHref} className="btn btn-primary">
+        <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+          <Link to={createHref} className="btn btn-primary w-full sm:w-auto">
             Criar encontro
           </Link>
-          <a href="#como-funciona" className="btn btn-ghost">
+          <a href="#como-funciona" className="btn btn-ghost w-full sm:w-auto">
             Ver como funciona
           </a>
         </div>
@@ -52,15 +52,15 @@ export function HomePage() {
           ))}
         </ol>
       </section>
-      <aside className="relative">
-        <Paw className="pointer-events-none absolute -top-8 right-2 h-24 w-24 text-plum/15" />
-        <div className="card relative p-5 sm:p-6">
-          <div className="mb-4 flex items-center justify-between gap-3">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted">exemplo</p>
-              <h2 className="font-display text-2xl">café da sexta</h2>
+      <aside className="relative min-w-0">
+        <Paw className="pointer-events-none absolute -top-6 right-2 hidden h-24 w-24 text-plum/15 sm:block" />
+        <div className="card relative overflow-hidden p-4 sm:p-6">
+          <div className="mb-4 flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-sm font-bold uppercase tracking-[0.14em] text-muted">exemplo</p>
+              <h2 className="font-display text-2xl leading-tight">café da sexta</h2>
             </div>
-            <span className="rounded-full bg-lilac px-3 py-1 text-xs font-bold text-plum-deep">4 pessoas</span>
+            <span className="shrink-0 rounded-full bg-lilac px-3 py-2 text-sm font-bold text-plum-deep">4 pessoas</span>
           </div>
           <div
             className="grid gap-1.5"
@@ -73,7 +73,7 @@ export function HomePage() {
                 return (
                   <div
                     key={`${rowIndex}-${column}`}
-                    className="flex h-9 items-center justify-center rounded-lg text-xs font-bold"
+                    className="flex h-11 items-center justify-center rounded-lg text-sm font-bold"
                     style={{ background: tone.background, color: tone.color }}
                   >
                     {count > 0 ? count : ""}
