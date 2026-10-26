@@ -1,0 +1,48 @@
+# miau2meet — Cloudflare Worker + D1
+# Docs: https://developers.cloudflare.com/workers/wrangler/configuration/
+#       https://developers.cloudflare.com/d1/reference/migrations/
+
+name = "miau2meet"
+main = "src/worker/index.ts"
+compatibility_date = "2026-10-26"
+compatibility_flags = ["nodejs_compat"]
+
+# Canonical public origin. Auth cookies follow the request host at runtime
+# (workers.dev or the custom domain), and this value is always trusted.
+[vars]
+BETTER_AUTH_URL = "https://miau2meet.mvalentim.dev"
+
+# Secret (never commit the value):
+#   wrangler secret put BETTER_AUTH_SECRET
+# Local dev reads it from .dev.vars (see .dev.vars.example).
+[secrets]
+required = ["BETTER_AUTH_SECRET"]
+
+# Vite fills assets.directory in the build output. Do not set it here.
+# /api/* hits the Worker; every other path is the SPA.
+[assets]
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+run_worker_first = ["/api/*"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "miau2meet"
+database_id = "771c02d5-6713-4dea-8ab3-0d96f0c7cc70"
+migrations_dir = "migrations"
+
+[observability]
+enabled = true
+
+[observability.logs]
+enabled = true
+head_sampling_rate = 1
+
+[observability.traces]
+enabled = true
+head_sampling_rate = 0.1
+
+# Custom domain later, once mvalentim.dev is a Cloudflare zone:
+# [[routes]]
+# pattern = "miau2meet.mvalentim.dev"
+# custom_domain = true
